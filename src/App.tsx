@@ -124,6 +124,9 @@ export default function App() {
                       <SummaryPanel
                         summary={calc.summary}
                         onPriceChange={calc.setPriceOverride}
+                        onResetPrices={calc.resetPriceOverrides}
+                        priceOverrides={calc.priceOverrides}
+                        marketPrices={calc.data.priceByItemId}
                       />
                       <Card title="Дерево крафту" size="small">
                         <CraftTree

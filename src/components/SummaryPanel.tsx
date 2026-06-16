@@ -1,4 +1,5 @@
-import { Card, Col, InputNumber, Row, Statistic, Table, Tag, Typography } from "antd";
+import { Button, Card, Col, InputNumber, Row, Statistic, Table, Tag, Tooltip, Typography } from "antd";
+import { UndoOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type {
   AggregatedMaterial,
@@ -6,7 +7,7 @@ import type {
   JobRow,
   TreeSummary,
 } from "../domain/tree";
-import { formatDuration, formatISK, formatQuantity } from "../domain/format";
+import { formatDuration, formatISK, formatISKExact, formatQuantity } from "../domain/format";
 import { ItemIcon } from "./ItemIcon";
 
 const { Text } = Typography;
@@ -14,9 +15,19 @@ const { Text } = Typography;
 interface Props {
   summary: TreeSummary;
   onPriceChange: (itemId: number, price: number | null) => void;
+  onResetPrices: () => void;
+  priceOverrides: Map<number, number>;
+  marketPrices: Map<number, number>;
 }
 
-export function SummaryPanel({ summary, onPriceChange }: Props) {
+export function SummaryPanel({
+  summary,
+  onPriceChange,
+  onResetPrices,
+  priceOverrides,
+  marketPrices,
+}: Props) {
+  const priceOverrideCount = priceOverrides.size;
   const savings =
     summary.buyFinishedCost != null ? summary.buyFinishedCost - summary.grandTotal : null;
 
@@ -49,18 +60,36 @@ export function SummaryPanel({ summary, onPriceChange }: Props) {
       title: "Ціна/од.",
       key: "unitPrice",
       align: "right",
-      render: (_, m) => (
-        <InputNumber
-          size="small"
-          value={m.unitPrice}
-          min={0}
-          style={{ width: 130 }}
-          status={m.priceKnown ? undefined : "warning"}
-          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
-          parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
-          onChange={(v) => onPriceChange(m.itemId, v == null ? null : Number(v))}
-        />
-      ),
+      render: (_, m) => {
+        const overridden = priceOverrides.has(m.itemId);
+        const market = marketPrices.get(m.itemId);
+        return (
+          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <InputNumber
+              size="small"
+              value={m.unitPrice}
+              min={0}
+              style={{ width: 130 }}
+              status={m.priceKnown ? undefined : "warning"}
+              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
+              parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
+              onChange={(v) => onPriceChange(m.itemId, v == null ? null : Number(v))}
+            />
+            {overridden && (
+              <Tooltip title="Натисніть, щоб повернути ринкову ціну">
+                <Text
+                  type="secondary"
+                  style={{ fontSize: 11, cursor: "pointer" }}
+                  onClick={() => onPriceChange(m.itemId, null)}
+                >
+                  ринок: {market != null ? formatISKExact(market) : "—"}{" "}
+                  <UndoOutlined />
+                </Text>
+              </Tooltip>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Сума",
@@ -178,7 +207,22 @@ export function SummaryPanel({ summary, onPriceChange }: Props) {
         </Col>
       </Row>
 
-      <Card title="Список покупок (агреговано)" style={{ marginTop: 16 }} size="small">
+      <Card
+        title="Список покупок (агреговано)"
+        style={{ marginTop: 16 }}
+        size="small"
+        extra={
+          <Button
+            size="small"
+            icon={<UndoOutlined />}
+            onClick={onResetPrices}
+            disabled={priceOverrideCount === 0}
+          >
+            Скинути ціни
+            {priceOverrideCount > 0 ? ` (${priceOverrideCount})` : ""}
+          </Button>
+        }
+      >
         <Table<AggregatedMaterial>
           columns={materialColumns}
           dataSource={summary.shoppingList}

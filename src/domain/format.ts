@@ -5,6 +5,11 @@ export function formatISK(value: number): string {
   return `${numberFmt.format(Math.round(value))} ISK`;
 }
 
+/** Форматує ISK без округлення до цілого (до 2 знаків після коми). */
+export function formatISKExact(value: number): string {
+  return `${numberFmt.format(value)} ISK`;
+}
+
 /** Форматує кількість (цілі одиниці). */
 export function formatQuantity(value: number): string {
   return numberFmt.format(value);
