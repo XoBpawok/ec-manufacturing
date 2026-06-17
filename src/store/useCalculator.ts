@@ -20,7 +20,7 @@ export function loadPriceOverrides(): Map<number, number> {
   }
 }
 
-function savePriceOverrides(m: Map<number, number>): void {
+export function savePriceOverrides(m: Map<number, number>): void {
   try {
     localStorage.setItem(PRICE_OVERRIDES_KEY, JSON.stringify(Object.fromEntries(m)));
   } catch {

@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Card, Space, Spin, Table, Tag, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { loadGameData } from "../api/client";
 import type { GameData } from "../api/types";
 import { rankCraftProfits, type CraftProfit } from "../domain/rating";
-import { loadPriceOverrides } from "../store/useCalculator";
+import { loadPriceOverrides, savePriceOverrides } from "../store/useCalculator";
 import { ItemIcon } from "../components/ItemIcon";
+import { RatingPriceDrawer } from "../components/RatingPriceDrawer";
 import { formatDuration, formatISK } from "../domain/format";
 
 const { Text } = Typography;
@@ -41,7 +42,16 @@ const columns: ColumnsType<CraftProfit> = [
     key: "sellPrice",
     align: "right",
     sorter: (a, b) => a.sellPrice - b.sellPrice,
-    render: (v: number) => formatISK(v),
+    render: (_: number, r: CraftProfit) => (
+      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+        <span>
+          {formatISK(r.sellPrice)} {r.sellIsOverride && <Tag color="blue" style={{ marginInlineEnd: 0 }}>своя</Tag>}
+        </span>
+        {r.sellIsOverride && (
+          <Text type="secondary" style={{ fontSize: 11 }}>ринок: {formatISK(r.sellPriceMarket)}</Text>
+        )}
+      </div>
+    ),
   },
   {
     title: "Вартість крафту",
@@ -49,7 +59,14 @@ const columns: ColumnsType<CraftProfit> = [
     key: "craftCost",
     align: "right",
     sorter: (a, b) => a.craftCost - b.craftCost,
-    render: (v: number) => formatISK(v),
+    render: (_: number, r: CraftProfit) => (
+      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+        <span>{formatISK(r.craftCost)}</span>
+        {Math.round(r.craftCostMarket) !== Math.round(r.craftCost) && (
+          <Text type="secondary" style={{ fontSize: 11 }}>за ринком: {formatISK(r.craftCostMarket)}</Text>
+        )}
+      </div>
+    ),
   },
   {
     title: "Прибуток",
@@ -93,6 +110,8 @@ export function RatingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [priceOverrides, setPriceOverrides] = useState<Map<number, number>>(loadPriceOverrides);
+  const [drawerItemId, setDrawerItemId] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -116,10 +135,25 @@ export function RatingPage() {
     };
   }, [reloadKey]);
 
+  useEffect(() => {
+    savePriceOverrides(priceOverrides);
+  }, [priceOverrides]);
+
+  const setPriceOverride = useCallback((itemId: number, price: number | null) => {
+    setPriceOverrides((prev) => {
+      const next = new Map(prev);
+      if (price == null) next.delete(itemId);
+      else next.set(itemId, price);
+      return next;
+    });
+  }, []);
+
+  const resetPriceOverrides = useCallback(() => setPriceOverrides(new Map()), []);
+
   const rows = useMemo(() => {
     if (!data) return [];
-    return rankCraftProfits({ data, priceOverrides: loadPriceOverrides(), levels: new Map() });
-  }, [data]);
+    return rankCraftProfits({ data, priceOverrides, levels: new Map() });
+  }, [data, priceOverrides]);
 
   if (loading) {
     return (
@@ -157,8 +191,9 @@ export function RatingPage() {
       }
     >
       <Text type="secondary">
-        Вартість крафту рахується «до сировини» (будуються всі компоненти) на
-        максимальних скілах. Ціни — ринкові (з урахуванням ваших перевизначень).
+        Вартість крафту рахується «до сировини» на максимальних скілах, із цінами блюпрінтів.
+        Збережені (ваші) ціни мають пріоритет; ринкова (середньотижнева) показується поряд.
+        Клік на рядок — редагувати ціни виробу, інгредієнтів і блюпрінтів.
       </Text>
       <Table<CraftProfit>
         style={{ marginTop: 16 }}
@@ -168,7 +203,22 @@ export function RatingPage() {
         size="small"
         pagination={false}
         scroll={{ x: true }}
+        onRow={(r) => ({
+          style: { cursor: "pointer" },
+          onClick: () => setDrawerItemId(r.itemId),
+        })}
       />
+      {data && (
+        <RatingPriceDrawer
+          open={drawerItemId != null}
+          data={data}
+          itemId={drawerItemId}
+          priceOverrides={priceOverrides}
+          onPriceChange={setPriceOverride}
+          onResetPrices={resetPriceOverrides}
+          onClose={() => setDrawerItemId(null)}
+        />
+      )}
     </Card>
   );
 }
