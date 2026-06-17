@@ -106,4 +106,61 @@ describe("rankCraftProfits", () => {
     const [row] = rankCraftProfits({ data, priceOverrides: overrides, levels: noLevels });
     expect(row.craftCost).toBe(1); // (0 + 1×1)/1
   });
+
+  it("додає ціну блюпрінта до вартості крафту (manufacture)", () => {
+    const widget = mk({
+      itemId: 1, blueprintId: 901, manufactureCost: 1000, manufactureTime: 100,
+      materials: [{ id: 2, name: "Raw", type: "Mineral", quantity: 2 }],
+    });
+    const data = gameData([widget], [[1, 5000], [2, 100], [901, 300]]);
+    const [row] = rankCraftProfits({ data, priceOverrides: noOverrides, levels: noLevels });
+    // craftCost = (1000 + 300 + 100×2)/1 = 1500
+    expect(row.craftCost).toBe(1500);
+  });
+
+  it("ділить ціну блюпрінта реверсу на passRate", () => {
+    const re = mk({
+      itemId: 5, blueprintId: 905, kind: "reverse", manufactureCost: 100, manufactureTime: 60, passRate: 0.5,
+      materials: [{ id: 6, name: "Base", type: "Base", quantity: 1 }],
+    });
+    const data = gameData([re], [[5, 5000], [6, 100], [905, 50]]);
+    const [row] = rankCraftProfits({ data, priceOverrides: noOverrides, levels: noLevels });
+    // cost = (100 + 50 + 100×1)/(1×0.5) = 500
+    expect(row.craftCost).toBe(500);
+  });
+
+  it("невідома ціна блюпрінта = 0, предмет лишається в рейтингу", () => {
+    const widget = mk({
+      itemId: 1, blueprintId: 901, manufactureCost: 1000,
+      materials: [{ id: 2, name: "Raw", type: "Mineral", quantity: 2 }],
+    });
+    const data = gameData([widget], [[1, 5000], [2, 100]]); // 901 без ціни
+    const [row] = rankCraftProfits({ data, priceOverrides: noOverrides, levels: noLevels });
+    expect(row.craftCost).toBe(1200); // блюпрінт = 0
+  });
+
+  it("override ціни блюпрінта застосовується; craftCostMarket лишається ринковим", () => {
+    const widget = mk({
+      itemId: 1, blueprintId: 901, manufactureCost: 0, manufactureTime: 100,
+      materials: [{ id: 2, name: "Raw", type: "Mineral", quantity: 1 }],
+    });
+    const data = gameData([widget], [[1, 5000], [2, 100], [901, 300]]);
+    const overrides = new Map<number, number>([[901, 50]]);
+    const [row] = rankCraftProfits({ data, priceOverrides: overrides, levels: noLevels });
+    expect(row.craftCost).toBe(150); // (0 + 50 + 100)/1
+    expect(row.craftCostMarket).toBe(400); // (0 + 300 + 100)/1 за ринком
+  });
+
+  it("sellPriceMarket і sellIsOverride відображають override продукту", () => {
+    const widget = mk({
+      itemId: 1, manufactureCost: 0,
+      materials: [{ id: 2, name: "Raw", type: "Mineral", quantity: 1 }],
+    });
+    const data = gameData([widget], [[1, 5000], [2, 100]]);
+    const overrides = new Map<number, number>([[1, 8000]]);
+    const [row] = rankCraftProfits({ data, priceOverrides: overrides, levels: noLevels });
+    expect(row.sellPrice).toBe(8000);
+    expect(row.sellPriceMarket).toBe(5000);
+    expect(row.sellIsOverride).toBe(true);
+  });
 });

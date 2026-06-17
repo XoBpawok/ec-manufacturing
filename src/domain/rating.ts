@@ -10,7 +10,10 @@ export interface CraftProfit {
   kind: RecipeKind;
   iconUrl?: string;
   sellPrice: number; // ринкова ціна предмета (або override)
+  sellPriceMarket: number; // ринкова ціна продукту (estimated_price)
+  sellIsOverride: boolean; // чи ціна продажу — це override користувача
   craftCost: number; // повна вартість крафту до сировини, за одиницю
+  craftCostMarket: number; // вартість крафту лише за ринковими цінами (без override'ів)
   profit: number; // sellPrice − craftCost
   margin: number; // profit / craftCost (частка; craftCost>0)
   craftTime: number; // секунди, рекурсивно весь ланцюг, за одиницю
@@ -26,6 +29,7 @@ export interface RatingParams {
 
 interface UnitCT {
   cost: number; // вартість за одиницю
+  costMarket: number; // вартість за одиницю лише за ринковими цінами
   time: number; // секунди за одиницю
   known: boolean; // чи відомі всі ціни в ланцюгу
 }
@@ -48,6 +52,8 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
     return data.priceByItemId.get(itemId);
   };
 
+  const marketPrice = (itemId: number): number | undefined => data.priceByItemId.get(itemId);
+
   const unit = (itemId: number): UnitCT => {
     const cached = memo.get(itemId);
     if (cached) return cached;
@@ -55,10 +61,12 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
     // Лист (нема рецепту) або цикл — купуємо.
     if (!recipe || inProgress.has(itemId)) {
       const p = buyPrice(itemId);
-      return { cost: p ?? 0, time: 0, known: p != null };
+      const pm = marketPrice(itemId);
+      return { cost: p ?? 0, costMarket: pm ?? p ?? 0, time: 0, known: p != null };
     }
     inProgress.add(itemId);
     let materialsCost = 0;
+    let materialsCostMarket = 0;
     let materialsTime = 0;
     let known = true;
     for (const m of recipe.materials) {
@@ -69,13 +77,17 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
           ? m.quantity * materialFactor(recipe, levels, data.skillByName, null)
           : m.quantity;
       materialsCost += child.cost * perUnit;
+      materialsCostMarket += child.costMarket * perUnit;
       materialsTime += child.time * perUnit;
     }
     inProgress.delete(itemId);
+    const blueprintCost = buyPrice(recipe.blueprintId) ?? 0;
+    const blueprintCostMarket = marketPrice(recipe.blueprintId) ?? 0;
     const denom = recipe.outputNumber * recipe.passRate;
-    const cost = (recipe.manufactureCost + materialsCost) / denom;
+    const cost = (recipe.manufactureCost + blueprintCost + materialsCost) / denom;
+    const costMarket = (recipe.manufactureCost + blueprintCostMarket + materialsCostMarket) / denom;
     const time = (effectiveTime(recipe, levels, data.skillByName) + materialsTime) / denom;
-    const result: UnitCT = { cost, time, known };
+    const result: UnitCT = { cost, costMarket, time, known };
     memo.set(itemId, result);
     return result;
   };
@@ -84,7 +96,7 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
   for (const [itemId, recipe] of data.recipeByItemId) {
     const sell = buyPrice(itemId);
     if (sell == null) continue;
-    const { cost, time, known } = unit(itemId);
+    const { cost, costMarket, time, known } = unit(itemId);
     if (!known) continue;
     const profit = sell - cost;
     out.push({
@@ -95,7 +107,10 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
       kind: recipe.kind,
       iconUrl: iconUrl(data.iconByItemId.get(itemId)),
       sellPrice: sell,
+      sellPriceMarket: marketPrice(itemId) ?? sell,
+      sellIsOverride: priceOverrides.has(itemId),
       craftCost: cost,
+      craftCostMarket: costMarket,
       profit,
       margin: cost > 0 ? profit / cost : 0,
       craftTime: time,
