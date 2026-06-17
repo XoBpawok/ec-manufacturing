@@ -25,6 +25,9 @@ export interface BuildNode {
   buyCost: number; // quantity × unitPrice (тільки buy)
   jobCost: number; // manufactureCost × attempts × costFactor (Capital Components зі знижкою) (тільки build)
   jobTime: number; // секунди, effectiveTime × attempts (тільки build)
+  blueprintUnitPrice: number; // ціна одного блюпрінта (0 для buy-вузла)
+  blueprintPriceKnown: boolean; // чи відома ринкова ціна блюпрінта
+  blueprintCost: number; // blueprintUnitPrice × attempts (0 для buy-вузла)
   nodeTotal: number; // повна вартість піддерева
   children: BuildNode[];
 }
@@ -99,6 +102,8 @@ function buildNode(
     const costFactor = type === CAPITAL_COMPONENT_TYPE ? 1 - pct / 100 : 1;
     const jobCost = r.manufactureCost * attempts * costFactor;
     const jobTime = effectiveTime(r, levels, data.skillByName) * attempts;
+    const bp = priceFor(r.blueprintId, data, priceOverrides);
+    const blueprintCost = bp.price * attempts;
     const childrenTotal = children.reduce((sum, c) => sum + c.nodeTotal, 0);
     return {
       key: keyPath,
@@ -118,7 +123,10 @@ function buildNode(
       buyCost: 0,
       jobCost,
       jobTime,
-      nodeTotal: childrenTotal + jobCost,
+      blueprintUnitPrice: bp.price,
+      blueprintPriceKnown: bp.known,
+      blueprintCost,
+      nodeTotal: childrenTotal + jobCost + blueprintCost,
       children,
     };
   }
@@ -144,6 +152,9 @@ function buildNode(
     buyCost,
     jobCost: 0,
     jobTime: 0,
+    blueprintUnitPrice: 0,
+    blueprintPriceKnown: true,
+    blueprintCost: 0,
     nodeTotal: buyCost,
     children: [],
   };
@@ -192,6 +203,10 @@ export interface JobRow {
   runs: number;
   jobCost: number;
   jobTime: number;
+  blueprintId: number;
+  blueprintUnitPrice: number;
+  blueprintPriceKnown: boolean;
+  blueprintCost: number;
 }
 
 export interface TreeSummary {
@@ -200,6 +215,7 @@ export interface TreeSummary {
   jobs: JobRow[]; // усе, що виробляємо (build-вузли), агреговано по предмету
   totalBuyCost: number;
   totalJobCost: number;
+  totalBlueprintCost: number;
   grandTotal: number;
   totalTime: number;
   buyFinishedCost: number | null; // вартість купити готовий предмет
@@ -213,6 +229,7 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
   const skills = new Set<string>();
   let totalBuyCost = 0;
   let totalJobCost = 0;
+  let totalBlueprintCost = 0;
   let totalTime = 0;
 
   const walk = (node: BuildNode): void => {
@@ -236,6 +253,7 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
       }
     } else {
       totalJobCost += node.jobCost;
+      totalBlueprintCost += node.blueprintCost;
       totalTime += node.jobTime;
       const recipe = params.data.recipeByItemId.get(node.itemId);
       if (recipe) recipe.skills.forEach((s) => { if (params.data.skillByName.has(s)) skills.add(s); });
@@ -244,6 +262,7 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
         acc.runs += node.runs;
         acc.jobCost += node.jobCost;
         acc.jobTime += node.jobTime;
+        acc.blueprintCost += node.blueprintCost;
       } else {
         jobMap.set(node.itemId, {
           itemId: node.itemId,
@@ -253,6 +272,10 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
           runs: node.runs,
           jobCost: node.jobCost,
           jobTime: node.jobTime,
+          blueprintId: params.data.recipeByItemId.get(node.itemId)?.blueprintId ?? 0,
+          blueprintUnitPrice: node.blueprintUnitPrice,
+          blueprintPriceKnown: node.blueprintPriceKnown,
+          blueprintCost: node.blueprintCost,
         });
       }
       node.children.forEach(walk);
@@ -285,9 +308,27 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
     jobs,
     totalBuyCost,
     totalJobCost,
-    grandTotal: totalBuyCost + totalJobCost,
+    totalBlueprintCost,
+    grandTotal: totalBuyCost + totalJobCost + totalBlueprintCost,
     totalTime,
     buyFinishedCost,
     relevantSkills: [...skills].sort(),
   };
+}
+
+/** Набір усіх craftable-предметів у піддереві кореня (для «будувати все»). */
+export function fullBuildSet(data: GameData, rootItemId: number): Set<number> {
+  const set = new Set<number>();
+  const walk = (id: number, visited: Set<number>): void => {
+    const recipe = data.recipeByItemId.get(id);
+    if (!recipe) return;
+    for (const m of recipe.materials) {
+      if (data.recipeByItemId.has(m.id) && !visited.has(m.id)) {
+        set.add(m.id);
+        walk(m.id, new Set(visited).add(m.id));
+      }
+    }
+  };
+  walk(rootItemId, new Set([rootItemId]));
+  return set;
 }

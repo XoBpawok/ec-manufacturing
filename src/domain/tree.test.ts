@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameData, Recipe, Skill } from "../api/types";
-import { buildTree, summarizeTree, CAPITAL_COMPONENT_TYPE, type TreeParams } from "./tree";
+import { buildTree, summarizeTree, fullBuildSet, CAPITAL_COMPONENT_TYPE, type TreeParams } from "./tree";
 
 // Дерево: Ship(1) ← 2× Component(2) ← 10× Mineral(3, не craftable)
 export function makeData(): GameData {
@@ -160,5 +160,53 @@ describe("capComponentCostReduction", () => {
   it("клампить значення поза діапазоном 0–100", () => {
     expect(buildTree(capParams(-10)).children[0].jobCost).toBe(50 * 2); // <0 → 0% знижки
     expect(buildTree(capParams(150)).children[0].jobCost).toBe(0); // >100 → 100% знижки
+  });
+
+  it("знижка capComponent не зачіпає вартість блюпрінта", () => {
+    const params = { ...capParams(50), priceOverrides: new Map<number, number>([[9002, 100]]) };
+    const comp = buildTree(params).children[0];
+    expect(comp.jobCost).toBe(50 * 2 * 0.5); // 50 — job зі знижкою
+    expect(comp.blueprintCost).toBe(100 * 2); // 200 — блюпрінт без знижки
+  });
+});
+
+describe("blueprint cost", () => {
+  it("ціна блюпрінта дає blueprintCost і входить у nodeTotal/grandTotal", () => {
+    const data = makeData();
+    const params = {
+      ...baseParams(data, new Set([2])),
+      priceOverrides: new Map<number, number>([[9001, 1000], [9002, 100]]),
+    };
+    const tree = buildTree(params);
+    expect(tree.blueprintUnitPrice).toBe(1000);
+    expect(tree.blueprintCost).toBe(1000); // attempts = 1
+    const comp = tree.children[0];
+    expect(comp.blueprintCost).toBe(100 * 2); // 2 runs
+    // root nodeTotal = children + jobCost(1000) + blueprintCost(1000)
+    const childrenTotal = tree.children.reduce((s, c) => s + c.nodeTotal, 0);
+    expect(tree.nodeTotal).toBe(childrenTotal + tree.jobCost + 1000);
+
+    const sum = summarizeTree(tree, params);
+    expect(sum.totalBlueprintCost).toBe(1000 + 200);
+    expect(sum.grandTotal).toBe(sum.totalBuyCost + sum.totalJobCost + sum.totalBlueprintCost);
+  });
+
+  it("невідома ціна блюпрінта → blueprintCost 0, blueprintPriceKnown false", () => {
+    const tree = buildTree(baseParams(makeData(), new Set([2]))); // без цін блюпрінтів
+    expect(tree.blueprintCost).toBe(0);
+    expect(tree.blueprintPriceKnown).toBe(false);
+  });
+
+  it("buy-вузол має нульові поля блюпрінта", () => {
+    const comp = buildTree(baseParams(makeData(), new Set())).children[0];
+    expect(comp.mode).toBe("buy");
+    expect(comp.blueprintCost).toBe(0);
+    expect(comp.blueprintUnitPrice).toBe(0);
+  });
+
+  it("fullBuildSet збирає всі craftable у піддереві", () => {
+    const set = fullBuildSet(makeData(), 1);
+    expect(set.has(2)).toBe(true); // компонент craftable
+    expect(set.has(3)).toBe(false); // мінерал не craftable
   });
 });
