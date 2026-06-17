@@ -56,10 +56,13 @@ export function computeOptimalBuildSet(params: OptimizeParams): Set<number> {
         materials += childUnit * perUnit;
       }
       inProgress.delete(itemId);
+      const blueprintCost = priceOverrides.has(recipe.blueprintId)
+        ? priceOverrides.get(recipe.blueprintId)!
+        : data.priceByItemId.get(recipe.blueprintId) ?? 0;
       // Вартість за одну вироблену одиницю. Для реверсу ділимо на pass_rate
       // (очікувана кількість спроб на успіх) і на output_number.
       craft =
-        (recipe.manufactureCost + materials) / (recipe.outputNumber * recipe.passRate);
+        (recipe.manufactureCost + blueprintCost + materials) / (recipe.outputNumber * recipe.passRate);
     }
 
     const build = craft < buy;

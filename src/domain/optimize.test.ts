@@ -68,4 +68,15 @@ describe("computeOptimalBuildSet", () => {
     // (root завжди build), тож перевіряємо принаймні відсутність помилок
     expect(set).toBeInstanceOf(Set);
   });
+
+  it("враховує ціну блюпрінта в рішенні buy/build", () => {
+    // без блюпрінта: craft = 50 + 10×5 = 100 < buy 500 → build
+    // з блюпрінтом 9002 = 1000: craft = 1100 > buy 500 → buy
+    const d = data(500, 5);
+    const set = computeOptimalBuildSet({
+      ...params(d),
+      priceOverrides: new Map<number, number>([[9002, 1000]]),
+    });
+    expect(set.has(2)).toBe(false);
+  });
 });
