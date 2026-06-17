@@ -9,7 +9,7 @@ export const NAGLFAR_ITEM_ID = 10701000201;
 const PRICE_OVERRIDES_KEY = "ec-manufacturing:priceOverrides:v1";
 const CAP_COST_KEY = "ec-manufacturing:capCostReduction:v1";
 
-function loadPriceOverrides(): Map<number, number> {
+export function loadPriceOverrides(): Map<number, number> {
   try {
     const raw = localStorage.getItem(PRICE_OVERRIDES_KEY);
     if (!raw) return new Map();
