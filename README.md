@@ -35,3 +35,15 @@ src/
 
 Опис API та моделі даних — у [`CLAUDE.md`](./CLAUDE.md).
 Дизайн — у [`docs/superpowers/specs/`](./docs/superpowers/specs/).
+
+## Спільні ціни (Supabase)
+
+Введені ціни зберігаються у спільній таблиці `prices` Supabase (без логіну).
+Без env-змінних застосунок працює на localStorage.
+
+1. Створіть безкоштовний проєкт на supabase.com.
+2. SQL Editor → виконайте `supabase/schema.sql`.
+3. Project Settings → API: скопіюйте `Project URL` та `anon public` ключ.
+4. Локально: `.env.local` зі `VITE_SUPABASE_URL` і `VITE_SUPABASE_ANON_KEY`.
+5. Для деплою: GitHub repo → Settings → Secrets and variables → Actions →
+   Variables: додайте `VITE_SUPABASE_URL` і `VITE_SUPABASE_ANON_KEY`.

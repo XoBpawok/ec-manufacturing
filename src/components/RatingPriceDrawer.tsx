@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { Drawer, Card, Col, InputNumber, Row, Space, Statistic, Tooltip, Typography } from "antd";
-import { UndoOutlined } from "@ant-design/icons";
+import { Drawer, Card, Col, InputNumber, Row, Space, Statistic, Typography } from "antd";
 import type { GameData } from "../api/types";
 import { buildTree, summarizeTree, fullBuildSet } from "../domain/tree";
 import { SummaryPanel } from "./SummaryPanel";
+import { FreshnessDot } from "./FreshnessDot";
 import { formatISK, formatISKExact } from "../domain/format";
+import type { PriceEntry } from "../api/prices";
 
 const { Text } = Typography;
 
@@ -13,8 +14,8 @@ interface Props {
   data: GameData;
   itemId: number | null;
   priceOverrides: Map<number, number>;
-  onPriceChange: (itemId: number, price: number | null) => void;
-  onResetPrices: () => void;
+  priceMeta: Map<number, PriceEntry>;
+  onPriceChange: (itemId: number, price: number) => void;
   onClose: () => void;
 }
 
@@ -23,8 +24,8 @@ export function RatingPriceDrawer({
   data,
   itemId,
   priceOverrides,
+  priceMeta,
   onPriceChange,
-  onResetPrices,
   onClose,
 }: Props) {
   const recipe = itemId != null ? data.recipeByItemId.get(itemId) : undefined;
@@ -72,18 +73,13 @@ export function RatingPriceDrawer({
                   style={{ width: 180 }}
                   formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                   parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
-                  onChange={(v) => onPriceChange(itemId, v == null ? null : Number(v))}
+                  onChange={(v) => v != null && onPriceChange(itemId, Number(v))}
                 />
                 {sellOverride != null && (
-                  <Tooltip title="Натисніть, щоб повернути ринкову ціну">
-                    <Text
-                      type="secondary"
-                      style={{ fontSize: 11, cursor: "pointer" }}
-                      onClick={() => onPriceChange(itemId, null)}
-                    >
-                      ринок: {market != null ? formatISKExact(market) : "—"} <UndoOutlined />
-                    </Text>
-                  </Tooltip>
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    ринок: {market != null ? formatISKExact(market) : "—"}
+                    <FreshnessDot updatedAt={priceMeta.get(itemId)?.updatedAt} />
+                  </Text>
                 )}
               </div>
             </Space>
@@ -118,8 +114,8 @@ export function RatingPriceDrawer({
           <SummaryPanel
             summary={summary}
             onPriceChange={onPriceChange}
-            onResetPrices={onResetPrices}
             priceOverrides={priceOverrides}
+            priceMeta={priceMeta}
             marketPrices={data.priceByItemId}
           />
         </Space>

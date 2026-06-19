@@ -1,5 +1,4 @@
-import { Button, Card, Col, Collapse, InputNumber, Row, Statistic, Table, Tag, Tooltip, Typography } from "antd";
-import { UndoOutlined } from "@ant-design/icons";
+import { Card, Col, Collapse, InputNumber, Row, Statistic, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type {
   AggregatedMaterial,
@@ -9,25 +8,26 @@ import type {
 } from "../domain/tree";
 import { formatDuration, formatISK, formatISKExact, formatQuantity } from "../domain/format";
 import { ItemIcon } from "./ItemIcon";
+import { FreshnessDot } from "./FreshnessDot";
+import type { PriceEntry } from "../api/prices";
 
 const { Text } = Typography;
 
 interface Props {
   summary: TreeSummary;
-  onPriceChange: (itemId: number, price: number | null) => void;
-  onResetPrices: () => void;
+  onPriceChange: (itemId: number, price: number) => void;
   priceOverrides: Map<number, number>;
+  priceMeta: Map<number, PriceEntry>;
   marketPrices: Map<number, number>;
 }
 
 export function SummaryPanel({
   summary,
   onPriceChange,
-  onResetPrices,
   priceOverrides,
+  priceMeta,
   marketPrices,
 }: Props) {
-  const priceOverrideCount = priceOverrides.size;
   const savings =
     summary.buyFinishedCost != null ? summary.buyFinishedCost - summary.grandTotal : null;
 
@@ -73,19 +73,13 @@ export function SummaryPanel({
               status={m.priceKnown ? undefined : "warning"}
               formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
               parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
-              onChange={(v) => onPriceChange(m.itemId, v == null ? null : Number(v))}
+              onChange={(v) => v != null && onPriceChange(m.itemId, Number(v))}
             />
             {overridden && (
-              <Tooltip title="Натисніть, щоб повернути ринкову ціну">
-                <Text
-                  type="secondary"
-                  style={{ fontSize: 11, cursor: "pointer" }}
-                  onClick={() => onPriceChange(m.itemId, null)}
-                >
-                  ринок: {market != null ? formatISKExact(market) : "—"}{" "}
-                  <UndoOutlined />
-                </Text>
-              </Tooltip>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                ринок: {market != null ? formatISKExact(market) : "—"}
+                <FreshnessDot updatedAt={priceMeta.get(m.itemId)?.updatedAt} />
+              </Text>
             )}
           </div>
         );
@@ -223,20 +217,6 @@ export function SummaryPanel({
           {
             key: "shopping",
             label: "Список покупок (агреговано)",
-            extra: (
-              <Button
-                size="small"
-                icon={<UndoOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onResetPrices();
-                }}
-                disabled={priceOverrideCount === 0}
-              >
-                Скинути ціни
-                {priceOverrideCount > 0 ? ` (${priceOverrideCount})` : ""}
-              </Button>
-            ),
             children: (
               <Table<AggregatedMaterial>
                 columns={materialColumns}

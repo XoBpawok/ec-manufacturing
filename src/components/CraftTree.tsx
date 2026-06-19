@@ -1,8 +1,10 @@
 import { InputNumber, Switch, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { BuildNode } from "../domain/tree";
-import { formatDuration, formatISK, formatQuantity } from "../domain/format";
+import { formatDuration, formatISK, formatISKExact, formatQuantity } from "../domain/format";
 import { ItemIcon } from "./ItemIcon";
+import { FreshnessDot } from "./FreshnessDot";
+import type { PriceEntry } from "../api/prices";
 
 const { Text } = Typography;
 
@@ -11,10 +13,22 @@ interface Props {
   rootItemId: number;
   auto: boolean;
   onToggleBuild: (itemId: number) => void;
-  onPriceChange: (itemId: number, price: number | null) => void;
+  onPriceChange: (itemId: number, price: number) => void;
+  priceOverrides: Map<number, number>;
+  marketPrices: Map<number, number>;
+  priceMeta: Map<number, PriceEntry>;
 }
 
-export function CraftTree({ tree, rootItemId, auto, onToggleBuild, onPriceChange }: Props) {
+export function CraftTree({
+  tree,
+  rootItemId,
+  auto,
+  onToggleBuild,
+  onPriceChange,
+  priceOverrides,
+  marketPrices,
+  priceMeta,
+}: Props) {
   const columns: ColumnsType<BuildNode> = [
     {
       title: "Предмет",
@@ -75,15 +89,23 @@ export function CraftTree({ tree, rootItemId, auto, onToggleBuild, onPriceChange
       width: 160,
       render: (_, node) =>
         node.mode === "buy" ? (
-          <InputNumber
-            size="small"
-            value={node.unitPrice}
-            min={0}
-            style={{ width: 140 }}
-            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
-            parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
-            onChange={(v) => onPriceChange(node.itemId, v == null ? null : Number(v))}
-          />
+          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <InputNumber
+              size="small"
+              value={node.unitPrice}
+              min={0}
+              style={{ width: 140 }}
+              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
+              parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
+              onChange={(v) => v != null && onPriceChange(node.itemId, Number(v))}
+            />
+            {priceOverrides.has(node.itemId) && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                ринок: {marketPrices.get(node.itemId) != null ? formatISKExact(marketPrices.get(node.itemId)!) : "—"}
+                <FreshnessDot updatedAt={priceMeta.get(node.itemId)?.updatedAt} />
+              </Text>
+            )}
+          </div>
         ) : (
           <Text type="secondary">—</Text>
         ),
