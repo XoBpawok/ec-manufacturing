@@ -76,6 +76,7 @@ const ja: Resource = {
     blueprints: "ブループリント",
     buyFinished: "市場価格",
     finishedTotal: "合計：{{value}}",
+    pricesLoading: "データベースから価格を読み込み中…",
     savings: "製造による節約",
     moreExpensive: "購入より高い",
     totalTime: "合計時間",

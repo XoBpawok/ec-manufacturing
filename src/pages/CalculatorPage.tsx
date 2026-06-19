@@ -114,6 +114,7 @@ export function CalculatorPage() {
                     priceOverrides={calc.priceOverrides}
                     priceMeta={calc.priceMeta}
                     marketPrices={calc.data.priceByItemId}
+                    pricesLoading={calc.pricesLoading}
                   />
                   <Collapse
                     items={[
@@ -130,6 +131,7 @@ export function CalculatorPage() {
                             priceOverrides={calc.priceOverrides}
                             priceMeta={calc.priceMeta}
                             marketPrices={calc.data.priceByItemId}
+                            pricesLoading={calc.pricesLoading}
                           />
                         ),
                       },

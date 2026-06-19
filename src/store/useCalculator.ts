@@ -82,6 +82,7 @@ export interface Calculator {
 
   priceOverrides: Map<number, number>;
   priceMeta: Map<number, PriceEntry>;
+  pricesLoading: boolean;
   setPriceOverride: (itemId: number, price: number) => void;
 
   capComponentCostReduction: number;
@@ -110,7 +111,7 @@ export function useCalculator(): Calculator {
   const [materialEfficiency, setMaterialEfficiency] = useState<number | null>(null);
   const [manualBuildSet, setManualBuildSet] = useState<Set<number>>(new Set());
   const [auto, setAuto] = useState(false);
-  const { priceOverrides, priceMeta, setPriceOverride } = usePrices();
+  const { priceOverrides, priceMeta, pricesLoading, setPriceOverride } = usePrices();
   const [capComponentCostReduction, setCapCostReductionState] =
     useState<number>(loadCapCostReduction);
 
@@ -213,6 +214,7 @@ export function useCalculator(): Calculator {
     setAuto,
     priceOverrides,
     priceMeta,
+    pricesLoading,
     setPriceOverride,
     capComponentCostReduction,
     setCapComponentCostReduction,

@@ -18,6 +18,7 @@ interface Props {
   priceOverrides: Map<number, number>;
   marketPrices: Map<number, number>;
   priceMeta: Map<number, PriceEntry>;
+  pricesLoading?: boolean;
 }
 
 export function CraftTree({
@@ -29,6 +30,7 @@ export function CraftTree({
   priceOverrides,
   marketPrices,
   priceMeta,
+  pricesLoading = false,
 }: Props) {
   const { t } = useTranslation();
   const columns: ColumnsType<BuildNode> = [
@@ -96,6 +98,7 @@ export function CraftTree({
               size="small"
               value={node.unitPrice}
               min={0}
+              disabled={pricesLoading}
               style={{ width: 140 }}
               formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
               parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}

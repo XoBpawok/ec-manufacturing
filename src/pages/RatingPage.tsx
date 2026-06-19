@@ -129,7 +129,7 @@ export function RatingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const { priceOverrides, priceMeta, setPriceOverride } = usePrices();
+  const { priceOverrides, priceMeta, pricesLoading, setPriceOverride } = usePrices();
   const [disabledCategories, setDisabledCategories] = useState<Set<string>>(loadDisabledCategories);
   const [drawerItemId, setDrawerItemId] = useState<number | null>(null);
 
@@ -258,6 +258,7 @@ export function RatingPage() {
           itemId={drawerItemId}
           priceOverrides={priceOverrides}
           priceMeta={priceMeta}
+          pricesLoading={pricesLoading}
           onPriceChange={setPriceOverride}
           onClose={() => setDrawerItemId(null)}
         />

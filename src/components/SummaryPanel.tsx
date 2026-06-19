@@ -1,4 +1,4 @@
-import { Card, Col, Collapse, InputNumber, Row, Statistic, Table, Tag, Typography } from "antd";
+import { Alert, Card, Col, Collapse, InputNumber, Row, Spin, Statistic, Table, Tag, Typography } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import type { ColumnsType } from "antd/es/table";
@@ -22,6 +22,9 @@ interface Props {
   priceOverrides: Map<number, number>;
   priceMeta: Map<number, PriceEntry>;
   marketPrices: Map<number, number>;
+  // While prices are still loading from the database, editing is disabled: a fresh
+  // fetch replaces the whole price map, so an edit made mid-load would be lost.
+  pricesLoading?: boolean;
 }
 
 export function SummaryPanel({
@@ -31,6 +34,7 @@ export function SummaryPanel({
   priceOverrides,
   priceMeta,
   marketPrices,
+  pricesLoading = false,
 }: Props) {
   const { t } = useTranslation();
 
@@ -84,6 +88,7 @@ export function SummaryPanel({
               size="small"
               value={m.unitPrice}
               min={0}
+              disabled={pricesLoading}
               style={{ width: 130 }}
               status={m.priceKnown ? undefined : "warning"}
               formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
@@ -159,6 +164,15 @@ export function SummaryPanel({
 
   return (
     <>
+      {pricesLoading && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<Spin size="small" />}
+          message={t("summary.pricesLoading")}
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <Card>
@@ -207,6 +221,7 @@ export function SummaryPanel({
                 controls={false}
                 value={finishedUnitPrice}
                 min={0}
+                disabled={pricesLoading}
                 status={finishedPriceKnown ? undefined : "warning"}
                 formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                 parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}

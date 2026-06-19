@@ -75,6 +75,7 @@ const zh: Resource = {
     blueprints: "蓝图",
     buyFinished: "市场价格",
     finishedTotal: "合计：{{value}}",
+    pricesLoading: "正在从数据库加载价格…",
     savings: "制造节省",
     moreExpensive: "比购买更贵",
     totalTime: "总时间",

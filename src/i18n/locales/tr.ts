@@ -76,6 +76,7 @@ const tr: Resource = {
     blueprints: "Blueprint'ler",
     buyFinished: "Piyasa fiyatı",
     finishedTotal: "toplam: {{value}}",
+    pricesLoading: "Fiyatlar veritabanından yükleniyor…",
     savings: "Üretimden tasarruf",
     moreExpensive: "Satın almaktan daha pahalı",
     totalTime: "Toplam süre",

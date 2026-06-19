@@ -16,6 +16,7 @@ interface Props {
   itemId: number | null;
   priceOverrides: Map<number, number>;
   priceMeta: Map<number, PriceEntry>;
+  pricesLoading?: boolean;
   onPriceChange: (itemId: number, price: number) => void;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ export function RatingPriceDrawer({
   itemId,
   priceOverrides,
   priceMeta,
+  pricesLoading = false,
   onPriceChange,
   onClose,
 }: Props) {
@@ -72,6 +74,7 @@ export function RatingPriceDrawer({
                 <InputNumber
                   value={sellOverride ?? market ?? 0}
                   min={0}
+                  disabled={pricesLoading}
                   style={{ width: 180 }}
                   formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
                   parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
@@ -119,6 +122,7 @@ export function RatingPriceDrawer({
             priceOverrides={priceOverrides}
             priceMeta={priceMeta}
             marketPrices={data.priceByItemId}
+            pricesLoading={pricesLoading}
           />
         </Space>
       )}

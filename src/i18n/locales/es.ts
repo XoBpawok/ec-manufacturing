@@ -76,6 +76,7 @@ const es: Resource = {
     blueprints: "Planos",
     buyFinished: "Precio de mercado",
     finishedTotal: "total: {{value}}",
+    pricesLoading: "Cargando precios desde la base de datos…",
     savings: "Ahorro por fabricar",
     moreExpensive: "Más caro que comprar",
     totalTime: "Tiempo total",

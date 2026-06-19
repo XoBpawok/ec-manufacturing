@@ -74,6 +74,7 @@ const uk = {
     blueprints: "Блюпрінти",
     buyFinished: "Ціна на ринку",
     finishedTotal: "всього: {{value}}",
+    pricesLoading: "Завантаження цін із бази…",
     savings: "Економія від крафту",
     moreExpensive: "Дорожче за купівлю",
     totalTime: "Загальний час",
