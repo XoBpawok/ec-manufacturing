@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
+  schedule:
+    # Кожні 6 годин оновлюємо снапшот цін/рецептів з echoes.mobi.
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,6 +27,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Серверний снапшот даних echoes.mobi (без CORS) у public/data/*.json.
+      - run: node scripts/fetch-data.mjs
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}

@@ -1,6 +1,10 @@
 import type { CraftableItem, GameData, Recipe, RecipeKind, Skill } from "./types";
 
-const BASE = "https://echoes.mobi/api";
+// echoes.mobi більше не віддає CORS-заголовки, тож браузер не може тягнути API
+// напряму. Дані знімаються серверним снапшотом (scripts/fetch-data.mjs → CI) у
+// public/data/*.json і вантажаться звідси same-origin. BASE_URL враховує підшлях
+// GitHub Pages (напр. /ec-manufacturing/).
+const DATA_BASE = `${import.meta.env.BASE_URL}data`;
 
 const CACHE_KEY = "ec-manufacturing:gamedata:v3";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 години
@@ -40,12 +44,12 @@ interface RawSkill {
   time: string;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+async function getJson<T>(file: string): Promise<T> {
+  const res = await fetch(`${DATA_BASE}/${file}`, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
-    throw new Error(`API ${path} → HTTP ${res.status}`);
+    throw new Error(`data ${file} → HTTP ${res.status}`);
   }
   return (await res.json()) as T;
 }
@@ -162,10 +166,10 @@ function writeCache(c: CachedRaw): void {
 
 async function fetchRaw(): Promise<CachedRaw> {
   const [blueprints, reverse, prices, skills] = await Promise.all([
-    getJson<RawRecipe[]>("/v2/item_blueprints"),
-    getJson<RawRecipe[]>("/v2/item_reverse_engineering"),
-    getJson<RawPrice[]>("/v2/item_prices"),
-    getJson<RawSkill[]>("/v2/industry_skills"),
+    getJson<RawRecipe[]>("item_blueprints.json"),
+    getJson<RawRecipe[]>("item_reverse_engineering.json"),
+    getJson<RawPrice[]>("item_prices.json"),
+    getJson<RawSkill[]>("industry_skills.json"),
   ]);
   return { fetchedAt: Date.now(), blueprints, reverse, prices, skills };
 }
