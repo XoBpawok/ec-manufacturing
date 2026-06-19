@@ -89,8 +89,11 @@ export function rankCraftProfits(params: RatingParams): CraftProfit[] {
       materialsTime += child.time * perUnit;
     }
     inProgress.delete(itemId);
-    const blueprintCost = buyPrice(recipe.blueprintId) ?? 0;
-    const blueprintCostMarket = marketPrice(recipe.blueprintId) ?? 0;
+    // Реверс блюпрінтів не споживає (виробляє їх), тож для kind === "reverse"
+    // ціну власного блюпрінта не нараховуємо.
+    const blueprintCost = recipe.kind === "reverse" ? 0 : buyPrice(recipe.blueprintId) ?? 0;
+    const blueprintCostMarket =
+      recipe.kind === "reverse" ? 0 : marketPrice(recipe.blueprintId) ?? 0;
     const denom = recipe.outputNumber * recipe.passRate;
     const cost = (recipe.manufactureCost + blueprintCost + materialsCost) / denom;
     const costMarket = (recipe.manufactureCost + blueprintCostMarket + materialsCostMarket) / denom;

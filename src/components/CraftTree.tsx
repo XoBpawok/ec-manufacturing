@@ -27,6 +27,11 @@ export function CraftTree({ tree, rootItemId, auto, onToggleBuild, onPriceChange
           <Text strong={node.itemId === rootItemId} style={{ whiteSpace: "nowrap" }}>
             {node.name}
           </Text>
+          {node.isBlueprint && (
+            <Tag color="gold" style={{ marginInlineEnd: 0 }}>
+              блюпрінт
+            </Tag>
+          )}
           {node.mode === "build" ? (
             node.recipeKind === "reverse" ? (
               <Tag color="purple" style={{ marginInlineEnd: 0 }}>

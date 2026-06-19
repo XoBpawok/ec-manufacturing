@@ -118,15 +118,15 @@ describe("rankCraftProfits", () => {
     expect(row.craftCost).toBe(1500);
   });
 
-  it("ділить ціну блюпрінта реверсу на passRate", () => {
+  it("реверс-рецепт не додає ціну власного блюпрінта (немає вхідного блюпрінта)", () => {
     const re = mk({
       itemId: 5, blueprintId: 905, kind: "reverse", manufactureCost: 100, manufactureTime: 60, passRate: 0.5,
       materials: [{ id: 6, name: "Base", type: "Base", quantity: 1 }],
     });
     const data = gameData([re], [[5, 5000], [6, 100], [905, 50]]);
     const [row] = rankCraftProfits({ data, priceOverrides: noOverrides, levels: noLevels });
-    // cost = (100 + 50 + 100×1)/(1×0.5) = 500
-    expect(row.craftCost).toBe(500);
+    // cost = (100 + 0 + 100×1)/(1×0.5) = 400 — ціна блюпрінта 905 НЕ враховується для реверсу
+    expect(row.craftCost).toBe(400);
   });
 
   it("невідома ціна блюпрінта = 0, предмет лишається в рейтингу", () => {

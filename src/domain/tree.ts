@@ -25,10 +25,7 @@ export interface BuildNode {
   buyCost: number; // quantity × unitPrice (тільки buy)
   jobCost: number; // manufactureCost × attempts × costFactor (Capital Components зі знижкою) (тільки build)
   jobTime: number; // секунди, effectiveTime × attempts (тільки build)
-  blueprintId: number; // id блюпрінта рецепту (0 для buy-вузла)
-  blueprintUnitPrice: number; // ціна одного блюпрінта (0 для buy-вузла)
-  blueprintPriceKnown: boolean; // чи відома ринкова ціна блюпрінта
-  blueprintCost: number; // blueprintUnitPrice × attempts (0 для buy-вузла)
+  isBlueprint: boolean; // чи цей вузол — блюпрінт, який споживає батьківський manufacture-job
   nodeTotal: number; // повна вартість піддерева
   children: BuildNode[];
 }
@@ -64,6 +61,7 @@ function buildNode(
   keyPath: string,
   params: TreeParams,
   visited: Set<number>,
+  isBlueprint = false,
 ): BuildNode {
   const { data, levels, materialEfficiency, buildSet, priceOverrides, capComponentCostReduction } =
     params;
@@ -99,12 +97,31 @@ function buildNode(
         nextVisited,
       );
     });
+
+    // Manufacture-job споживає блюпрінт (один на спробу). Реверс блюпрінтів НЕ
+    // споживає (він їх виробляє з датакорів), тож для kind === "reverse"
+    // блюпрінт-вузол не додається — це й виправляє само-посилання blueprintId.
+    if (r.kind === "manufacture") {
+      const bpId = r.blueprintId;
+      const bpRecipe = data.recipeByItemId.get(bpId);
+      const bpCraftable = bpRecipe != null;
+      const bpPrice = priceFor(bpId, data, priceOverrides);
+      // Показуємо блюпрінт, лише якщо він craftable або має відому ціну;
+      // інакше (немає ні рецепту, ні ціни) внесок = 0, як і раніше.
+      if (bpCraftable || bpPrice.known) {
+        const bpName = bpRecipe?.name ?? `${name} Blueprint`;
+        const bpType = bpRecipe?.categoryName ?? "Blueprint";
+        const bpMode: NodeMode = buildSet.has(bpId) && bpCraftable ? "build" : "buy";
+        children.push(
+          buildNode(bpId, bpName, bpType, attempts, bpMode, `${keyPath}/bp:${bpId}`, params, nextVisited, true),
+        );
+      }
+    }
+
     const pct = Math.min(100, Math.max(0, capComponentCostReduction));
     const costFactor = type === CAPITAL_COMPONENT_TYPE ? 1 - pct / 100 : 1;
     const jobCost = r.manufactureCost * attempts * costFactor;
     const jobTime = effectiveTime(r, levels, data.skillByName) * attempts;
-    const bp = priceFor(r.blueprintId, data, priceOverrides);
-    const blueprintCost = bp.price * attempts;
     const childrenTotal = children.reduce((sum, c) => sum + c.nodeTotal, 0);
     return {
       key: keyPath,
@@ -124,11 +141,8 @@ function buildNode(
       buyCost: 0,
       jobCost,
       jobTime,
-      blueprintId: r.blueprintId,
-      blueprintUnitPrice: bp.price,
-      blueprintPriceKnown: bp.known,
-      blueprintCost,
-      nodeTotal: childrenTotal + jobCost + blueprintCost,
+      isBlueprint,
+      nodeTotal: childrenTotal + jobCost,
       children,
     };
   }
@@ -154,10 +168,7 @@ function buildNode(
     buyCost,
     jobCost: 0,
     jobTime: 0,
-    blueprintId: 0,
-    blueprintUnitPrice: 0,
-    blueprintPriceKnown: true,
-    blueprintCost: 0,
+    isBlueprint,
     nodeTotal: buyCost,
     children: [],
   };
@@ -206,19 +217,15 @@ export interface JobRow {
   runs: number;
   jobCost: number;
   jobTime: number;
-  blueprintId: number;
-  blueprintUnitPrice: number;
-  blueprintPriceKnown: boolean;
-  blueprintCost: number;
 }
 
 export interface TreeSummary {
-  shoppingList: AggregatedMaterial[]; // усе, що купуємо (buy-вузли), агреговано по предмету
+  shoppingList: AggregatedMaterial[]; // матеріали, що купуємо (buy-вузли, крім блюпрінтів)
   categorySubtotals: CategorySubtotal[];
   jobs: JobRow[]; // усе, що виробляємо (build-вузли), агреговано по предмету
-  totalBuyCost: number;
-  totalJobCost: number;
-  totalBlueprintCost: number;
+  totalBuyCost: number; // куплені матеріали (без блюпрінтів)
+  totalJobCost: number; // вартість усіх job (включно з реверсом крафтованих блюпрінтів)
+  totalBlueprintCost: number; // вартість куплених блюпрінтів
   grandTotal: number;
   totalTime: number;
   buyFinishedCost: number | null; // вартість купити готовий предмет
@@ -237,6 +244,11 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
 
   const walk = (node: BuildNode): void => {
     if (node.mode === "buy") {
+      // Куплені блюпрінти — в окремий бакет; у список матеріалів не потрапляють.
+      if (node.isBlueprint) {
+        totalBlueprintCost += node.buyCost;
+        return;
+      }
       totalBuyCost += node.buyCost;
       const acc = buyMap.get(node.itemId);
       if (acc) {
@@ -256,7 +268,6 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
       }
     } else {
       totalJobCost += node.jobCost;
-      totalBlueprintCost += node.blueprintCost;
       totalTime += node.jobTime;
       const recipe = params.data.recipeByItemId.get(node.itemId);
       if (recipe) recipe.skills.forEach((s) => { if (params.data.skillByName.has(s)) skills.add(s); });
@@ -265,7 +276,6 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
         acc.runs += node.runs;
         acc.jobCost += node.jobCost;
         acc.jobTime += node.jobTime;
-        acc.blueprintCost += node.blueprintCost;
       } else {
         jobMap.set(node.itemId, {
           itemId: node.itemId,
@@ -275,10 +285,6 @@ export function summarizeTree(root: BuildNode, params: TreeParams): TreeSummary 
           runs: node.runs,
           jobCost: node.jobCost,
           jobTime: node.jobTime,
-          blueprintId: node.blueprintId,
-          blueprintUnitPrice: node.blueprintUnitPrice,
-          blueprintPriceKnown: node.blueprintPriceKnown,
-          blueprintCost: node.blueprintCost,
         });
       }
       node.children.forEach(walk);

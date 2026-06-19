@@ -56,9 +56,20 @@ export function computeOptimalBuildSet(params: OptimizeParams): Set<number> {
         materials += childUnit * perUnit;
       }
       inProgress.delete(itemId);
-      const blueprintCost = priceOverrides.has(recipe.blueprintId)
-        ? priceOverrides.get(recipe.blueprintId)!
-        : data.priceByItemId.get(recipe.blueprintId) ?? 0;
+      // Реверс блюпрінтів не споживає (виробляє їх), тож блюпрінт-вартість лише
+      // для manufacture. Якщо блюпрінт craftable — беремо мінімум купити/крафтити;
+      // інакше ринкову ціну (невідома → 0).
+      let blueprintCost = 0;
+      if (recipe.kind === "manufacture") {
+        if (data.recipeByItemId.has(recipe.blueprintId)) {
+          const u = unit(recipe.blueprintId).cost;
+          blueprintCost = Number.isFinite(u) ? u : 0;
+        } else {
+          blueprintCost = priceOverrides.has(recipe.blueprintId)
+            ? priceOverrides.get(recipe.blueprintId)!
+            : data.priceByItemId.get(recipe.blueprintId) ?? 0;
+        }
+      }
       // Вартість за одну вироблену одиницю. Для реверсу ділимо на pass_rate
       // (очікувана кількість спроб на успіх) і на output_number.
       craft =
@@ -80,6 +91,14 @@ export function computeOptimalBuildSet(params: OptimizeParams): Set<number> {
       if (unit(m.id).build) {
         buildSet.add(m.id);
         if (!visited.has(m.id)) collect(m.id, new Set(visited).add(itemId));
+      }
+    }
+    // Блюпрінт manufacture-рецепту теж може бути вигідніше крафтити (реверсом).
+    if (recipe.kind === "manufacture" && data.recipeByItemId.has(recipe.blueprintId)) {
+      const bpId = recipe.blueprintId;
+      if (unit(bpId).build) {
+        buildSet.add(bpId);
+        if (!visited.has(bpId)) collect(bpId, new Set(visited).add(itemId));
       }
     }
   };

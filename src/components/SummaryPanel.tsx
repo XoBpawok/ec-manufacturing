@@ -146,48 +146,6 @@ export function SummaryPanel({
       align: "right",
       render: (v: number) => formatDuration(v),
     },
-    {
-      title: "Ціна блюпрінта/од.",
-      key: "blueprintUnitPrice",
-      align: "right",
-      render: (_, j) => {
-        if (!j.blueprintId) return <Text type="secondary">—</Text>;
-        const overridden = priceOverrides.has(j.blueprintId);
-        const market = marketPrices.get(j.blueprintId);
-        return (
-          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <InputNumber
-              size="small"
-              value={j.blueprintUnitPrice}
-              min={0}
-              style={{ width: 130 }}
-              status={j.blueprintPriceKnown ? undefined : "warning"}
-              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}
-              parser={(v) => Number((v ?? "").replace(/\s/g, "")) as number}
-              onChange={(v) => onPriceChange(j.blueprintId, v == null ? null : Number(v))}
-            />
-            {overridden && (
-              <Tooltip title="Натисніть, щоб повернути ринкову ціну">
-                <Text
-                  type="secondary"
-                  style={{ fontSize: 11, cursor: "pointer" }}
-                  onClick={() => onPriceChange(j.blueprintId, null)}
-                >
-                  ринок: {market != null ? formatISKExact(market) : "—"} <UndoOutlined />
-                </Text>
-              </Tooltip>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: "Сума блюпрінтів",
-      dataIndex: "blueprintCost",
-      key: "blueprintCost",
-      align: "right",
-      render: (v: number) => formatISK(v),
-    },
   ];
 
   return (

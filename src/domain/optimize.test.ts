@@ -79,4 +79,64 @@ describe("computeOptimalBuildSet", () => {
     });
     expect(set.has(2)).toBe(false);
   });
+
+  // Корабель(1) споживає Ship Blueprint(60), який сам крафтиться реверсом із Datacore(4).
+  function bpData(buyBlueprint: number, datacorePrice: number): GameData {
+    const ship: Recipe = {
+      itemId: 1, blueprintId: 60, name: "Ship", categoryName: "Ship", groupName: "G", kind: "manufacture",
+      outputNumber: 1, manufactureCost: 1000, manufactureTime: 100, passRate: 1, skills: [],
+      materials: [{ id: 2, name: "Component", type: "Component", quantity: 2 }],
+    };
+    const shipBp: Recipe = {
+      itemId: 60, blueprintId: 60, name: "Ship Blueprint", categoryName: "Ship blueprint", groupName: "G", kind: "reverse",
+      outputNumber: 1, manufactureCost: 30, manufactureTime: 200, passRate: 0.5, skills: [],
+      materials: [{ id: 4, name: "Datacore", type: "Datacores", quantity: 1 }],
+    };
+    return {
+      craftables: [],
+      recipeByItemId: new Map([[1, ship], [60, shipBp]]),
+      priceByItemId: new Map([[1, 99999], [2, 500], [60, buyBlueprint], [4, datacorePrice]]),
+      iconByItemId: new Map(),
+      skillByName: new Map(),
+      fetchedAt: 0,
+    };
+  }
+
+  it("крафтить блюпрінт, коли реверс дешевший за купівлю", () => {
+    // craft blueprint = (30 + 10×1)/0.5 = 80 < buy 2000 → build
+    const set = computeOptimalBuildSet(params(bpData(2000, 10)));
+    expect(set.has(60)).toBe(true);
+  });
+
+  it("купує блюпрінт, коли реверс дорожчий за купівлю", () => {
+    // craft blueprint = (30 + 10×1)/0.5 = 80 > buy 50 → buy
+    const set = computeOptimalBuildSet(params(bpData(50, 10)));
+    expect(set.has(60)).toBe(false);
+  });
+
+  it("реверс-матеріал крафтиться попри високу ринкову ціну власного блюпрінта", () => {
+    // ship(1) ← reverse-матеріал(5)×1; reverse(5): blueprintId=5 (само-посилання)
+    const ship: Recipe = {
+      itemId: 1, blueprintId: 9001, name: "Ship", categoryName: "Ship", groupName: "G", kind: "manufacture",
+      outputNumber: 1, manufactureCost: 0, manufactureTime: 0, passRate: 1, skills: [],
+      materials: [{ id: 5, name: "T2", type: "Mod", quantity: 1 }],
+    };
+    const re: Recipe = {
+      itemId: 5, blueprintId: 5, name: "T2", categoryName: "Mod", groupName: "G", kind: "reverse",
+      outputNumber: 1, manufactureCost: 100, manufactureTime: 60, passRate: 0.5, skills: [],
+      materials: [{ id: 6, name: "Base", type: "Base", quantity: 1 }],
+    };
+    const d: GameData = {
+      craftables: [],
+      recipeByItemId: new Map([[1, ship], [5, re]]),
+      // craft5 (виправлено) = (100 + 100)/0.5 = 400 < buy 1000 → build
+      // craft5 (баг) = (100 + 100 + 1000)/0.5 = 2400 > 1000 → buy
+      priceByItemId: new Map([[5, 1000], [6, 100]]),
+      iconByItemId: new Map(),
+      skillByName: new Map(),
+      fetchedAt: 0,
+    };
+    const set = computeOptimalBuildSet(params(d));
+    expect(set.has(5)).toBe(true);
+  });
 });

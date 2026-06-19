@@ -166,47 +166,132 @@ describe("capComponentCostReduction", () => {
     const params = { ...capParams(50), priceOverrides: new Map<number, number>([[9002, 100]]) };
     const comp = buildTree(params).children[0];
     expect(comp.jobCost).toBe(50 * 2 * 0.5); // 50 — job зі знижкою
-    expect(comp.blueprintCost).toBe(100 * 2); // 200 — блюпрінт без знижки
+    const compBp = comp.children.find((c) => c.isBlueprint)!;
+    expect(compBp.buyCost).toBe(100 * 2); // 200 — блюпрінт без знижки (окремий buy-вузол)
   });
 });
 
-describe("blueprint cost", () => {
-  it("ціна блюпрінта дає blueprintCost і входить у nodeTotal/grandTotal", () => {
+describe("blueprint cost (некрафтований блюпрінт)", () => {
+  it("блюпрінт із відомою ціною → дочірній buy-вузол у totalBlueprintCost", () => {
     const data = makeData();
     const params = {
       ...baseParams(data, new Set([2])),
       priceOverrides: new Map<number, number>([[9001, 1000], [9002, 100]]),
     };
     const tree = buildTree(params);
-    expect(tree.blueprintUnitPrice).toBe(1000);
-    expect(tree.blueprintCost).toBe(1000); // attempts = 1
-    const comp = tree.children[0];
-    expect(comp.blueprintCost).toBe(100 * 2); // 2 runs
-    // root nodeTotal = children + jobCost(1000) + blueprintCost(1000)
+    const rootBp = tree.children.find((c) => c.isBlueprint)!;
+    expect(rootBp.itemId).toBe(9001);
+    expect(rootBp.mode).toBe("buy");
+    expect(rootBp.craftable).toBe(false);
+    expect(rootBp.buyCost).toBe(1000); // attempts = 1
+    const comp = tree.children.find((c) => c.itemId === 2)!;
+    const compBp = comp.children.find((c) => c.isBlueprint)!;
+    expect(compBp.buyCost).toBe(100 * 2); // 2 runs
+    // root nodeTotal = усі діти (включно з блюпрінтом) + jobCost
     const childrenTotal = tree.children.reduce((s, c) => s + c.nodeTotal, 0);
-    expect(tree.nodeTotal).toBe(childrenTotal + tree.jobCost + 1000);
+    expect(tree.nodeTotal).toBe(childrenTotal + tree.jobCost);
 
     const sum = summarizeTree(tree, params);
     expect(sum.totalBlueprintCost).toBe(1000 + 200);
     expect(sum.grandTotal).toBe(sum.totalBuyCost + sum.totalJobCost + sum.totalBlueprintCost);
+    // куплені блюпрінти не потрапляють у список матеріалів
+    expect(sum.shoppingList.some((m) => m.itemId === 9001 || m.itemId === 9002)).toBe(false);
   });
 
-  it("невідома ціна блюпрінта → blueprintCost 0, blueprintPriceKnown false", () => {
-    const tree = buildTree(baseParams(makeData(), new Set([2]))); // без цін блюпрінтів
-    expect(tree.blueprintCost).toBe(0);
-    expect(tree.blueprintPriceKnown).toBe(false);
+  it("блюпрінт без ціни й без рецепту не додає дочірній вузол", () => {
+    const tree = buildTree(baseParams(makeData(), new Set([2])));
+    expect(tree.children.every((c) => !c.isBlueprint)).toBe(true);
+    expect(tree.children[0].children.every((c) => !c.isBlueprint)).toBe(true);
   });
 
-  it("buy-вузол має нульові поля блюпрінта", () => {
-    const comp = buildTree(baseParams(makeData(), new Set())).children[0];
-    expect(comp.mode).toBe("buy");
-    expect(comp.blueprintCost).toBe(0);
-    expect(comp.blueprintUnitPrice).toBe(0);
-  });
-
-  it("fullBuildSet збирає всі craftable у піддереві", () => {
+  it("fullBuildSet збирає всі craftable у піддереві (без блюпрінтів)", () => {
     const set = fullBuildSet(makeData(), 1);
     expect(set.has(2)).toBe(true); // компонент craftable
     expect(set.has(3)).toBe(false); // мінерал не craftable
+  });
+});
+
+describe("blueprint craft (craftable блюпрінт через реверс)", () => {
+  // Ship(1) ← 2× Component(2); Ship споживає Ship Blueprint(60), який сам
+  // виробляється реверсом із Datacore(4). Component blueprint(9002) — некрафтований.
+  function makeBpData(): GameData {
+    const skillByName = new Map<string, Skill>();
+    const shipBp: Recipe = {
+      itemId: 1, blueprintId: 60, name: "Ship", categoryName: "Ship", groupName: "Dread", kind: "manufacture",
+      outputNumber: 1, manufactureCost: 1000, manufactureTime: 100, passRate: 1, skills: [],
+      materials: [{ id: 2, name: "Component", type: "Component", quantity: 2 }],
+    };
+    const compBp: Recipe = {
+      itemId: 2, blueprintId: 9002, name: "Component", categoryName: "Component", groupName: "Cap", kind: "manufacture",
+      outputNumber: 1, manufactureCost: 50, manufactureTime: 10, passRate: 1, skills: [],
+      materials: [{ id: 3, name: "Mineral", type: "Mineral", quantity: 10 }],
+    };
+    const shipBpRecipe: Recipe = {
+      itemId: 60, blueprintId: 60, name: "Ship Blueprint", categoryName: "Ship blueprint", groupName: "Dread Blueprints", kind: "reverse",
+      outputNumber: 1, manufactureCost: 30, manufactureTime: 200, passRate: 0.5, skills: [],
+      materials: [{ id: 4, name: "Datacore", type: "Datacores", quantity: 1 }],
+    };
+    return {
+      craftables: [],
+      recipeByItemId: new Map([[1, shipBp], [2, compBp], [60, shipBpRecipe]]),
+      priceByItemId: new Map([[2, 500], [3, 5], [1, 99999], [60, 2000], [4, 10]]),
+      iconByItemId: new Map(),
+      skillByName,
+      fetchedAt: 0,
+    };
+  }
+
+  function bpParams(buildSet: Set<number>): TreeParams {
+    return { ...baseParams(makeBpData(), buildSet) };
+  }
+
+  it("craftable блюпрінт за дефолтом — дочірній buy-вузол", () => {
+    const params = bpParams(new Set());
+    const tree = buildTree(params);
+    const bp = tree.children.find((c) => c.isBlueprint)!;
+    expect(bp.itemId).toBe(60);
+    expect(bp.craftable).toBe(true);
+    expect(bp.mode).toBe("buy");
+    expect(bp.quantity).toBe(1); // attempts = runs = 1
+    expect(bp.buyCost).toBe(2000);
+
+    const sum = summarizeTree(tree, params);
+    expect(sum.totalBlueprintCost).toBe(2000);
+    expect(sum.totalBuyCost).toBe(2 * 500); // лише компонент, без блюпрінта
+    expect(sum.totalJobCost).toBe(1000);
+    expect(sum.grandTotal).toBe(1000 + 2000 + 1000);
+  });
+
+  it("блюпрінт у режимі build рекурсує в реверс-рецепт", () => {
+    const params = bpParams(new Set([60]));
+    const tree = buildTree(params);
+    const bp = tree.children.find((c) => c.isBlueprint)!;
+    expect(bp.mode).toBe("build");
+    expect(bp.recipeKind).toBe("reverse");
+    expect(bp.runs).toBe(1);
+    expect(bp.attempts).toBe(2); // 1 / 0.5
+    expect(bp.jobCost).toBe(30 * 2); // 60
+    // реверс-вузол блюпрінта не має власного дочірнього блюпрінта
+    expect(bp.children.some((c) => c.isBlueprint)).toBe(false);
+    const datacore = bp.children[0];
+    expect(datacore.itemId).toBe(4);
+    expect(datacore.quantity).toBe(2); // ceil(1 × 2 спроби)
+    expect(datacore.buyCost).toBe(20);
+    expect(bp.nodeTotal).toBe(20 + 60);
+
+    const sum = summarizeTree(tree, params);
+    expect(sum.totalBlueprintCost).toBe(0); // блюпрінт будується, не купується
+    expect(sum.totalBuyCost).toBe(2 * 500 + 20); // компонент + датакор
+    expect(sum.totalJobCost).toBe(1000 + 60); // корабель + реверс блюпрінта
+    expect(sum.grandTotal).toBe(sum.totalBuyCost + sum.totalJobCost + sum.totalBlueprintCost);
+  });
+
+  it("реверс-рецепт не нараховує вартість власного блюпрінта", () => {
+    const params = { ...bpParams(new Set()), rootItemId: 60 };
+    const tree = buildTree(params);
+    expect(tree.recipeKind).toBe("reverse");
+    expect(tree.children.every((c) => !c.isBlueprint)).toBe(true);
+    // nodeTotal = датакор (buy) + jobCost; ринкова ціна блюпрінта (2000) НЕ додається
+    expect(tree.nodeTotal).toBe(tree.children[0].buyCost + tree.jobCost);
   });
 });
