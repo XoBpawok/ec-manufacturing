@@ -127,6 +127,9 @@ export function CalculatorPage() {
                             auto={calc.auto}
                             onToggleBuild={calc.toggleBuild}
                             onPriceChange={calc.setPriceOverride}
+                            priceOverrides={calc.priceOverrides}
+                            priceMeta={calc.priceMeta}
+                            marketPrices={calc.data.priceByItemId}
                           />
                         ),
                       },

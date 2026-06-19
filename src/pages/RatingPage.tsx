@@ -5,12 +5,8 @@ import type { ColumnsType } from "antd/es/table";
 import { loadGameData } from "../api/client";
 import type { GameData } from "../api/types";
 import { rankCraftProfits, recipeCategories, type CraftProfit } from "../domain/rating";
-import {
-  loadDisabledCategories,
-  loadPriceOverrides,
-  saveDisabledCategories,
-  savePriceOverrides,
-} from "../store/useCalculator";
+import { loadDisabledCategories, saveDisabledCategories } from "../store/useCalculator";
+import { usePrices } from "../store/usePrices";
 import { ItemIcon } from "../components/ItemIcon";
 import { RatingPriceDrawer } from "../components/RatingPriceDrawer";
 import { formatDuration, formatISK } from "../domain/format";
@@ -115,7 +111,7 @@ export function RatingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [priceOverrides, setPriceOverrides] = useState<Map<number, number>>(loadPriceOverrides);
+  const { priceOverrides, priceMeta, setPriceOverride } = usePrices();
   const [disabledCategories, setDisabledCategories] = useState<Set<string>>(loadDisabledCategories);
   const [drawerItemId, setDrawerItemId] = useState<number | null>(null);
 
@@ -142,10 +138,6 @@ export function RatingPage() {
   }, [reloadKey]);
 
   useEffect(() => {
-    savePriceOverrides(priceOverrides);
-  }, [priceOverrides]);
-
-  useEffect(() => {
     saveDisabledCategories(disabledCategories);
   }, [disabledCategories]);
 
@@ -157,17 +149,6 @@ export function RatingPage() {
       return next;
     });
   }, []);
-
-  const setPriceOverride = useCallback((itemId: number, price: number | null) => {
-    setPriceOverrides((prev) => {
-      const next = new Map(prev);
-      if (price == null) next.delete(itemId);
-      else next.set(itemId, price);
-      return next;
-    });
-  }, []);
-
-  const resetPriceOverrides = useCallback(() => setPriceOverrides(new Map()), []);
 
   const categories = useMemo(() => (data ? recipeCategories(data) : []), [data]);
 
@@ -267,8 +248,8 @@ export function RatingPage() {
           data={data}
           itemId={drawerItemId}
           priceOverrides={priceOverrides}
+          priceMeta={priceMeta}
           onPriceChange={setPriceOverride}
-          onResetPrices={resetPriceOverrides}
           onClose={() => setDrawerItemId(null)}
         />
       )}
