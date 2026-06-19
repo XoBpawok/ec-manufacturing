@@ -3,6 +3,7 @@ import { Button, Modal, Space, Typography } from "antd";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "../i18n/languages";
 import { LANG_STORAGE_KEY } from "../i18n";
+import { Flag } from "./Flag";
 
 const { Paragraph } = Typography;
 
@@ -46,7 +47,9 @@ export function LanguagePrompt() {
       <Space wrap>
         {LANGUAGES.map((l) => (
           <Button key={l.code} size="large" onClick={() => choose(l.code)}>
-            <span style={{ marginInlineEnd: 6 }}>{l.flag}</span>
+            <span style={{ marginInlineEnd: 8 }}>
+              <Flag countryCode={l.countryCode} title={l.nativeName} />
+            </span>
             {l.nativeName}
           </Button>
         ))}

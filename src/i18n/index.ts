@@ -8,7 +8,11 @@ import de from "./locales/de";
 import fr from "./locales/fr";
 import pl from "./locales/pl";
 import pt from "./locales/pt";
-import { DEFAULT_LANGUAGE, LANGUAGES } from "./languages";
+import ja from "./locales/ja";
+import it from "./locales/it";
+import ko from "./locales/ko";
+import tr from "./locales/tr";
+import { DEFAULT_LANGUAGE, LANGUAGES, detectLanguage } from "./languages";
 
 export const LANG_STORAGE_KEY = "ec-manufacturing:lang:v1";
 
@@ -21,6 +25,10 @@ const resources = {
   fr: { translation: fr },
   pl: { translation: pl },
   pt: { translation: pt },
+  ja: { translation: ja },
+  it: { translation: it },
+  ko: { translation: ko },
+  tr: { translation: tr },
 };
 
 function initialLanguage(): string {
@@ -28,7 +36,13 @@ function initialLanguage(): string {
     const stored = localStorage.getItem(LANG_STORAGE_KEY);
     if (stored && LANGUAGES.some((l) => l.code === stored)) return stored;
   } catch {
-    // localStorage may be unavailable (private mode); fall back to default.
+    // localStorage may be unavailable (private mode); fall back to detection.
+  }
+  // No explicit choice yet: derive the default from the system/browser locale,
+  // falling back to Ukrainian when none of our languages matches.
+  if (typeof navigator !== "undefined") {
+    const candidates = navigator.languages ?? [navigator.language];
+    return detectLanguage(candidates.filter(Boolean));
   }
   return DEFAULT_LANGUAGE;
 }
