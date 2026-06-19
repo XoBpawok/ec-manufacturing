@@ -3,7 +3,7 @@ import type { CraftableItem, GameData, Recipe, RecipeKind, Skill } from "./types
 // echoes.mobi no longer returns CORS headers, so the browser cannot fetch the API
 // directly. The data is captured by a server-side snapshot (scripts/fetch-data.mjs → CI)
 // into public/data/*.json and loaded from here same-origin. BASE_URL accounts for the
-// GitHub Pages subpath (e.g. /ec-manufacturing/).
+// GitHub Pages subpath (e.g. /ee-manufacturing/).
 const DATA_BASE = `${import.meta.env.BASE_URL}data`;
 
 const CACHE_KEY = "ec-manufacturing:gamedata:v3";
