@@ -3,31 +3,13 @@ import { loadGameData } from "../api/client";
 import type { GameData } from "../api/types";
 import { buildTree, summarizeTree, type BuildNode, type TreeSummary } from "../domain/tree";
 import { computeOptimalBuildSet } from "../domain/optimize";
+import { usePrices } from "./usePrices";
+import type { PriceEntry } from "../api/prices";
 
 export const NAGLFAR_ITEM_ID = 10701000201;
 
-const PRICE_OVERRIDES_KEY = "ec-manufacturing:priceOverrides:v1";
 const CAP_COST_KEY = "ec-manufacturing:capCostReduction:v1";
 const RATING_DISABLED_CATEGORIES_KEY = "ec-manufacturing:ratingDisabledCategories:v1";
-
-export function loadPriceOverrides(): Map<number, number> {
-  try {
-    const raw = localStorage.getItem(PRICE_OVERRIDES_KEY);
-    if (!raw) return new Map();
-    const obj = JSON.parse(raw) as Record<string, number>;
-    return new Map(Object.entries(obj).map(([k, v]) => [Number(k), Number(v)]));
-  } catch {
-    return new Map();
-  }
-}
-
-export function savePriceOverrides(m: Map<number, number>): void {
-  try {
-    localStorage.setItem(PRICE_OVERRIDES_KEY, JSON.stringify(Object.fromEntries(m)));
-  } catch {
-    // localStorage недоступний / перевищено квоту — ігноруємо
-  }
-}
 
 /** Вимкнені на сторінці рейтингу категорії. Порожньо = усі ввімкнені. */
 export function loadDisabledCategories(): Set<string> {
@@ -98,8 +80,8 @@ export interface Calculator {
   setAuto: (on: boolean) => void;
 
   priceOverrides: Map<number, number>;
-  setPriceOverride: (itemId: number, price: number | null) => void;
-  resetPriceOverrides: () => void;
+  priceMeta: Map<number, PriceEntry>;
+  setPriceOverride: (itemId: number, price: number) => void;
 
   capComponentCostReduction: number;
   setCapComponentCostReduction: (pct: number) => void;
@@ -121,7 +103,7 @@ export function useCalculator(): Calculator {
   const [materialEfficiency, setMaterialEfficiency] = useState<number | null>(null);
   const [manualBuildSet, setManualBuildSet] = useState<Set<number>>(new Set());
   const [auto, setAuto] = useState(false);
-  const [priceOverrides, setPriceOverrides] = useState<Map<number, number>>(loadPriceOverrides);
+  const { priceOverrides, priceMeta, setPriceOverride } = usePrices();
   const [capComponentCostReduction, setCapCostReductionState] =
     useState<number>(loadCapCostReduction);
 
@@ -139,10 +121,6 @@ export function useCalculator(): Calculator {
   }, [doLoad]);
 
   const refresh = useCallback(() => doLoad(true), [doLoad]);
-
-  useEffect(() => {
-    savePriceOverrides(priceOverrides);
-  }, [priceOverrides]);
 
   useEffect(() => {
     saveCapCostReduction(capComponentCostReduction);
@@ -170,17 +148,6 @@ export function useCalculator(): Calculator {
       return next;
     });
   }, []);
-
-  const setPriceOverride = useCallback((itemId: number, price: number | null) => {
-    setPriceOverrides((prev) => {
-      const next = new Map(prev);
-      if (price == null) next.delete(itemId);
-      else next.set(itemId, price);
-      return next;
-    });
-  }, []);
-
-  const resetPriceOverrides = useCallback(() => setPriceOverrides(new Map()), []);
 
   const handleSetRoot = useCallback((id: number) => {
     setRootItemId(id);
@@ -238,8 +205,8 @@ export function useCalculator(): Calculator {
     auto,
     setAuto,
     priceOverrides,
+    priceMeta,
     setPriceOverride,
-    resetPriceOverrides,
     capComponentCostReduction,
     setCapComponentCostReduction,
     tree,
