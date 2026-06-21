@@ -12,6 +12,7 @@ export const NAGLFAR_ITEM_ID = 10701000201;
 const CAP_COST_KEY = "ec-manufacturing:capCostReduction:v1";
 const RATING_DISABLED_CATEGORIES_KEY = "ec-manufacturing:ratingDisabledCategories:v1";
 const ROOT_ITEM_ID_KEY = "ec-manufacturing:rootItemId:v1";
+const SKILL_LEVELS_KEY = "ec-manufacturing:skillLevels:v1";
 
 function loadRootItemId(): number | null {
   try {
@@ -26,6 +27,25 @@ function loadRootItemId(): number | null {
 function saveRootItemId(id: number): void {
   try {
     localStorage.setItem(ROOT_ITEM_ID_KEY, String(id));
+  } catch {
+    // ignore
+  }
+}
+
+function loadSkillLevels(): Map<string, number> {
+  try {
+    const raw = localStorage.getItem(SKILL_LEVELS_KEY);
+    if (!raw) return new Map();
+    const obj = JSON.parse(raw) as Record<string, number>;
+    return new Map(Object.entries(obj).filter(([, v]) => Number.isFinite(v)));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveSkillLevels(levels: Map<string, number>): void {
+  try {
+    localStorage.setItem(SKILL_LEVELS_KEY, JSON.stringify(Object.fromEntries(levels)));
   } catch {
     // ignore
   }
@@ -128,7 +148,7 @@ export function useCalculator(): Calculator {
     return loadRootItemId() ?? NAGLFAR_ITEM_ID;
   });
   const [desiredQty, setDesiredQty] = useState(1);
-  const [skillLevels, setSkillLevels] = useState<Map<string, number>>(new Map());
+  const [skillLevels, setSkillLevels] = useState<Map<string, number>>(loadSkillLevels);
   const [materialEfficiency, setMaterialEfficiency] = useState<number | null>(null);
   const [manualBuildSet, setManualBuildSet] = useState<Set<number>>(new Set());
   const [auto, setAuto] = useState(false);
@@ -158,6 +178,10 @@ export function useCalculator(): Calculator {
   useEffect(() => {
     saveCapCostReduction(capComponentCostReduction);
   }, [capComponentCostReduction]);
+
+  useEffect(() => {
+    saveSkillLevels(skillLevels);
+  }, [skillLevels]);
 
   const setCapComponentCostReduction = useCallback((pct: number) => {
     setCapCostReductionState(Math.min(100, Math.max(0, Number.isFinite(pct) ? pct : 0)));

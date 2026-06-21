@@ -90,7 +90,7 @@ export function CalculatorPage() {
             <Alert type="warning" showIcon message={t("calc.noBlueprint")} />
           ) : (
             <Row gutter={[16, 16]}>
-              <Col xs={24} xl={6}>
+              <Col xs={24} xl={5}>
                 <Card title={t("calc.skillsTitle")} size="small">
                   <SkillsPanel
                     data={calc.data}
@@ -105,7 +105,7 @@ export function CalculatorPage() {
                   />
                 </Card>
               </Col>
-              <Col xs={24} xl={18}>
+              <Col xs={24} xl={19}>
                 <Space direction="vertical" size="large" style={{ width: "100%" }}>
                   <SummaryPanel
                     summary={calc.summary}
