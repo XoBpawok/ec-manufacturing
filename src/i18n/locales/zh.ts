@@ -47,6 +47,7 @@ const zh: Resource = {
     noSkills: "此物品没有相关技能",
     allMax: "全部设为最大（5）",
     levelInfo: "等级 {{level}} · 材料 −{{eff}}%",
+    lockedTooltip: "已锁定：需要 {{skill}} 达到 {{level}} 级",
   },
   tree: {
     item: "物品",

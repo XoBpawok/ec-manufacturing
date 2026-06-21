@@ -48,6 +48,7 @@ const es: Resource = {
     noSkills: "No hay habilidades para este objeto",
     allMax: "Todo al máximo (5)",
     levelInfo: "niv. {{level}} · −{{eff}}% materiales",
+    lockedTooltip: "Bloqueado: requiere {{skill}} en nivel {{level}}",
   },
   tree: {
     item: "Objeto",

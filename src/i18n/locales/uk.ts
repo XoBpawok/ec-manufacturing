@@ -46,6 +46,7 @@ const uk = {
     noSkills: "Немає скілів для цього предмета",
     allMax: "Усі на макс (5)",
     levelInfo: "рів. {{level}} · −{{eff}}% матеріалів",
+    lockedTooltip: "Заблоковано: потрібен {{skill}} на рівні {{level}}",
   },
   tree: {
     item: "Предмет",

@@ -1,7 +1,7 @@
 import { Button, Empty, InputNumber, Slider, Space, Tooltip, Typography } from "antd";
 import { useTranslation } from "react-i18next";
 import type { GameData } from "../api/types";
-import { MAX_SKILL_LEVEL } from "../domain/skills";
+import { effectiveSkillLevel, isSkillUnlocked, MAX_SKILL_LEVEL, skillPrerequisite } from "../domain/skills";
 
 const { Text } = Typography;
 
@@ -93,10 +93,12 @@ export function SkillsPanel({
           </div>
           {relevantSkills.map((name) => {
             const skill = data.skillByName.get(name);
-            const level = skillLevels.get(name) ?? MAX_SKILL_LEVEL;
+            const unlocked = isSkillUnlocked(name, skillLevels);
+            const level = effectiveSkillLevel(name, skillLevels);
             const eff = skill && level > 0 ? skill.efficiency[level - 1] : 0;
-            return (
-              <div key={name} style={{ opacity: meActive ? 0.5 : 1 }}>
+            const prereq = skillPrerequisite(name);
+            const slider = (
+              <div key={name} style={{ opacity: meActive ? 0.5 : unlocked ? 1 : 0.5 }}>
                 <Space style={{ justifyContent: "space-between", width: "100%" }}>
                   <Text>{name}</Text>
                   <Text type="secondary">{t("skills.levelInfo", { level, eff })}</Text>
@@ -106,9 +108,20 @@ export function SkillsPanel({
                   max={MAX_SKILL_LEVEL}
                   value={level}
                   marks={{ 0: "0", 5: "5" }}
+                  disabled={!unlocked}
                   onChange={(v) => onChange(name, v)}
                 />
               </div>
+            );
+            return prereq && !unlocked ? (
+              <Tooltip
+                key={name}
+                title={t("skills.lockedTooltip", { skill: prereq.name, level: prereq.minLevel })}
+              >
+                {slider}
+              </Tooltip>
+            ) : (
+              slider
             );
           })}
         </>

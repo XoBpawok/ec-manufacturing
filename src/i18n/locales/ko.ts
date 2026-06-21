@@ -48,6 +48,7 @@ const ko: Resource = {
     noSkills: "이 아이템에는 스킬이 없습니다",
     allMax: "모두 최대 (5)",
     levelInfo: "Lv {{level}} · −{{eff}}% 재료",
+    lockedTooltip: "잠김: {{skill}} 레벨 {{level}} 필요",
   },
   tree: {
     item: "아이템",

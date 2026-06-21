@@ -48,6 +48,7 @@ const fr: Resource = {
     noSkills: "Aucune compétence pour cet objet",
     allMax: "Tout au max (5)",
     levelInfo: "niv. {{level}} · −{{eff}}% matériaux",
+    lockedTooltip: "Verrouillé : nécessite {{skill}} au niveau {{level}}",
   },
   tree: {
     item: "Objet",

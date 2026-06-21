@@ -48,6 +48,7 @@ const tr: Resource = {
     noSkills: "Bu öğe için yetenek yok",
     allMax: "Hepsi maksimuma (5)",
     levelInfo: "sv. {{level}} · −%{{eff}} malzeme",
+    lockedTooltip: "Kilitli: {{skill}} seviye {{level}} gerekli",
   },
   tree: {
     item: "Öğe",

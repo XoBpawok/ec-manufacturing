@@ -3,9 +3,12 @@ import type { Recipe, Skill } from "../api/types";
 import {
   combineEfficiency,
   effectiveQuantity,
+  effectiveSkillLevel,
   effectiveTime,
+  isSkillUnlocked,
   materialFactor,
   skillEfficiencyFactor,
+  skillPrerequisite,
   MAX_SKILL_LEVEL,
   type SkillLevels,
 } from "./skills";
@@ -91,6 +94,56 @@ describe("effectiveQuantity з override ефективності", () => {
   });
   it("округлює вгору", () => {
     expect(effectiveQuantity(101, bp, levelsAll(5), skillByName, 50)).toBe(51);
+  });
+});
+
+describe("skillPrerequisite / isSkillUnlocked / effectiveSkillLevel", () => {
+  const names = [
+    "Dreadnought Manufacture",
+    "Advanced Dreadnought Manufacture",
+    "Expert Dreadnought Manufacture",
+  ];
+
+  it("базовий скіл не має передумов", () => {
+    expect(skillPrerequisite(names[0])).toBeNull();
+  });
+  it("адвансед вимагає базовий ≥4", () => {
+    expect(skillPrerequisite(names[1])).toEqual({ name: names[0], minLevel: 4 });
+  });
+  it("експерт вимагає адвансед ≥5", () => {
+    expect(skillPrerequisite(names[2])).toEqual({ name: names[1], minLevel: 5 });
+  });
+
+  it("адвансед заблокований, якщо базовий <4", () => {
+    const levels: SkillLevels = new Map([[names[0], 3]]);
+    expect(isSkillUnlocked(names[1], levels)).toBe(false);
+    expect(effectiveSkillLevel(names[1], levels)).toBe(0);
+  });
+  it("адвансед розблокований, якщо базовий =4", () => {
+    const levels: SkillLevels = new Map([[names[0], 4], [names[1], 3]]);
+    expect(isSkillUnlocked(names[1], levels)).toBe(true);
+    expect(effectiveSkillLevel(names[1], levels)).toBe(3);
+  });
+  it("експерт заблокований, якщо адвансед <5, навіть якщо явно заданий рівень", () => {
+    const levels: SkillLevels = new Map([
+      [names[0], 5],
+      [names[1], 4],
+      [names[2], 5],
+    ]);
+    expect(isSkillUnlocked(names[2], levels)).toBe(false);
+    expect(effectiveSkillLevel(names[2], levels)).toBe(0);
+  });
+  it("експерт розблокований лише коли адвансед =5", () => {
+    const levels: SkillLevels = new Map([
+      [names[0], 5],
+      [names[1], 5],
+      [names[2], 2],
+    ]);
+    expect(isSkillUnlocked(names[2], levels)).toBe(true);
+    expect(effectiveSkillLevel(names[2], levels)).toBe(2);
+  });
+  it("без записів у мапі (дефолт = макс) усе розблоковано", () => {
+    expect(effectiveSkillLevel(names[2], new Map())).toBe(MAX_SKILL_LEVEL);
   });
 });
 

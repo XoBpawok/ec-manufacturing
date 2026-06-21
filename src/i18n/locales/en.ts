@@ -48,6 +48,7 @@ const en: Resource = {
     noSkills: "No skills for this item",
     allMax: "All to max (5)",
     levelInfo: "lvl {{level}} · −{{eff}}% materials",
+    lockedTooltip: "Locked: requires {{skill}} at level {{level}}",
   },
   tree: {
     item: "Item",

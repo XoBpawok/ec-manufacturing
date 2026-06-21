@@ -17,7 +17,7 @@ export function combineEfficiency(
   for (const name of skillNames) {
     const skill = skillByName.get(name);
     if (!skill) continue;
-    const level = levels.get(name) ?? MAX_SKILL_LEVEL;
+    const level = effectiveSkillLevel(name, levels);
     if (level <= 0) continue;
     const value = skill.efficiency[level - 1];
     if (typeof value === "number") total += value;
@@ -38,7 +38,7 @@ export function combineTimeMultiplier(
   for (const name of skillNames) {
     const skill = skillByName.get(name);
     if (!skill) continue;
-    const level = levels.get(name) ?? MAX_SKILL_LEVEL;
+    const level = effectiveSkillLevel(name, levels);
     if (level <= 0) continue;
     const factor = skill.time[level - 1];
     if (typeof factor === "number") multiplier *= 1 + factor;
@@ -48,6 +48,38 @@ export function combineTimeMultiplier(
 
 function maxLevels(skillNames: string[]): SkillLevels {
   return new Map(skillNames.map((n) => [n, MAX_SKILL_LEVEL]));
+}
+
+/**
+ * Prerequisite for a skill tier, derived from its name ("Advanced X" / "Expert X").
+ * In-game, the Advanced tier can only be trained once the base skill is at least
+ * level 4, and the Expert tier only once Advanced is at level 5.
+ */
+export function skillPrerequisite(name: string): { name: string; minLevel: number } | null {
+  if (name.startsWith("Expert ")) {
+    return { name: `Advanced ${name.slice("Expert ".length)}`, minLevel: MAX_SKILL_LEVEL };
+  }
+  if (name.startsWith("Advanced ")) {
+    return { name: name.slice("Advanced ".length), minLevel: 4 };
+  }
+  return null;
+}
+
+/**
+ * Effective level of a skill: 0 if its prerequisite tier isn't met (the skill
+ * couldn't actually be trained), otherwise the stored/defaulted level.
+ */
+export function effectiveSkillLevel(name: string, levels: SkillLevels): number {
+  const prereq = skillPrerequisite(name);
+  if (prereq && effectiveSkillLevel(prereq.name, levels) < prereq.minLevel) return 0;
+  return levels.get(name) ?? MAX_SKILL_LEVEL;
+}
+
+/** Whether a skill's tier is unlocked (its prerequisite, if any, is satisfied). */
+export function isSkillUnlocked(name: string, levels: SkillLevels): boolean {
+  const prereq = skillPrerequisite(name);
+  if (!prereq) return true;
+  return effectiveSkillLevel(prereq.name, levels) >= prereq.minLevel;
 }
 
 /**

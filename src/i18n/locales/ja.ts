@@ -48,6 +48,7 @@ const ja: Resource = {
     noSkills: "このアイテムにはスキルがありません",
     allMax: "すべて最大 (5)",
     levelInfo: "Lv {{level}} · −{{eff}}% 材料",
+    lockedTooltip: "ロック中：{{skill}} がレベル {{level}} 必要",
   },
   tree: {
     item: "アイテム",
