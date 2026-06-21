@@ -95,6 +95,47 @@ describe("buildTree + summarizeTree", () => {
   });
 });
 
+describe("округлення кількості матеріалів по job, не по прогону", () => {
+  // 3 ships ← 1× Part(2). Скіл S дає effMax=60% (макс. рівень), на рівні 0 — 0%,
+  // тож factor = 1/(1-0.6) = 2.5. Наївне округлення per-run: ceil(1×2.5)=3 ×3 runs
+  // = 9. Правильне (per job, як у EVE Online): ceil(3×1×2.5) = ceil(7.5) = 8 —
+  // економія завдяки батчингу кількох прогонів в один job.
+  function makeBatchData(): GameData {
+    const skillByName = new Map<string, Skill>([
+      ["S", { name: "S", efficiency: [60, 60, 60, 60, 60], time: [0, 0, 0, 0, 0] }],
+    ]);
+    const shipBp: Recipe = {
+      itemId: 1, blueprintId: 9001, name: "Ship", categoryName: "Ship", groupName: "Dread", kind: "manufacture",
+      outputNumber: 1, manufactureCost: 0, manufactureTime: 0, passRate: 1, skills: ["S"],
+      materials: [{ id: 2, name: "Part", type: "Part", quantity: 1 }],
+    };
+    return {
+      craftables: [],
+      recipeByItemId: new Map([[1, shipBp]]),
+      priceByItemId: new Map([[2, 1]]),
+      iconByItemId: new Map(),
+      skillByName,
+      fetchedAt: 0,
+    };
+  }
+
+  it("3 прогони з рівнем 0 економлять матеріал порівняно з округленням на кожен окремо", () => {
+    const params: TreeParams = {
+      data: makeBatchData(),
+      rootItemId: 1,
+      desiredQty: 3,
+      levels: new Map([["S", 0]]),
+      materialEfficiency: null,
+      buildSet: new Set(),
+      priceOverrides: new Map(),
+      capComponentCostReduction: 0,
+    };
+    const tree = buildTree(params);
+    expect(tree.runs).toBe(3);
+    expect(tree.children[0].quantity).toBe(8); // not 9 (naive per-run ceil)
+  });
+});
+
 describe("capComponentCostReduction", () => {
   // Ship(1) ← 2× CapComp(2, type=Capital Construction Components) ← 10× Mineral(3)
   function makeCapData(): GameData {

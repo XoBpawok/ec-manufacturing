@@ -1,6 +1,6 @@
 import type { GameData, Recipe, RecipeKind } from "../api/types";
 import { iconUrl } from "../api/types";
-import { effectiveQuantity, effectiveTime, type SkillLevels } from "./skills";
+import { effectiveTime, materialFactor, type SkillLevels } from "./skills";
 
 /** Material type for capital components (value from echoes.mobi blueprints). */
 export const CAPITAL_COMPONENT_TYPE = "Capital Construction Components";
@@ -78,11 +78,13 @@ function buildNode(
     const attempts = r.kind === "reverse" ? runs / r.passRate : runs;
     const nextVisited = new Set(visited).add(itemId);
     const children = r.materials.map((m, idx) => {
-      // Manufacture: efficiency skills reduce quantity (per job), × runs.
+      // Manufacture: efficiency skills reduce quantity, rounded once over the whole
+      // job (runs × baseQuantity × factor), not per run — matches EVE's "per job"
+      // rounding, where batching several runs together can save fractional units.
       // Reverse: materials are consumed per attempt → × attempts.
       const childQty =
         r.kind === "manufacture"
-          ? effectiveQuantity(m.quantity, r, levels, data.skillByName, materialEfficiency) * runs
+          ? Math.ceil(m.quantity * materialFactor(r, levels, data.skillByName, materialEfficiency) * runs)
           : Math.ceil(m.quantity * attempts);
       const childCraftable = data.recipeByItemId.has(m.id);
       const childMode: NodeMode = buildSet.has(m.id) && childCraftable ? "build" : "buy";
