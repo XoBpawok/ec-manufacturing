@@ -11,6 +11,25 @@ export const NAGLFAR_ITEM_ID = 10701000201;
 
 const CAP_COST_KEY = "ec-manufacturing:capCostReduction:v1";
 const RATING_DISABLED_CATEGORIES_KEY = "ec-manufacturing:ratingDisabledCategories:v1";
+const ROOT_ITEM_ID_KEY = "ec-manufacturing:rootItemId:v1";
+
+function loadRootItemId(): number | null {
+  try {
+    const raw = localStorage.getItem(ROOT_ITEM_ID_KEY);
+    const n = raw == null ? NaN : Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRootItemId(id: number): void {
+  try {
+    localStorage.setItem(ROOT_ITEM_ID_KEY, String(id));
+  } catch {
+    // ignore
+  }
+}
 
 /** Categories disabled on the rating page. Empty = all enabled. */
 export function loadDisabledCategories(): Set<string> {
@@ -99,12 +118,14 @@ export function useCalculator(): Calculator {
     error: null,
   });
 
-  // Preselect an item passed from the rating page (#/?item=<id>); fall back to Naglfar.
+  // Preselect an item passed from the rating page (#/?item=<id>); otherwise restore
+  // the last-used item from localStorage so refresh/navigation keeps your place.
   const [searchParams] = useSearchParams();
   const [rootItemId, setRootItemId] = useState(() => {
     const raw = searchParams.get("item");
     const n = raw ? Number(raw) : NaN;
-    return Number.isFinite(n) && n > 0 ? n : NAGLFAR_ITEM_ID;
+    if (Number.isFinite(n) && n > 0) return n;
+    return loadRootItemId() ?? NAGLFAR_ITEM_ID;
   });
   const [desiredQty, setDesiredQty] = useState(1);
   const [skillLevels, setSkillLevels] = useState<Map<string, number>>(new Map());
@@ -127,6 +148,10 @@ export function useCalculator(): Calculator {
   useEffect(() => {
     doLoad(false);
   }, [doLoad]);
+
+  useEffect(() => {
+    saveRootItemId(rootItemId);
+  }, [rootItemId]);
 
   const refresh = useCallback(() => doLoad(true), [doLoad]);
 
